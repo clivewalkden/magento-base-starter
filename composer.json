@@ -2,7 +2,7 @@
   "name": "clivewalkden/magento-base-starter",
   "type": "project",
   "description": "A Magento starter template for local development and plugin testing.",
-  "keywords": ["Magento 2", "Starter"],
+  "keywords": ["Magento 2", "Starter Project"],
   "license": "MIT",
   "authors": [
     {
@@ -11,10 +11,18 @@
     }
   ],
   "require": {
+    "php": ">=7.4",
+    "composer/composer": "^2.2"
   },
   "scripts": {
     "post-create-project-cmd": [
-      "@php -v"
+      "CliveWalkden\\Composer\\Handler::checkComposerVersion",
+      "CliveWalkden\\Composer\\Handler::prepare"
+    ]
+  },
+  "autoload": {
+    "classmap": [
+      "Scripts/Composer/Handler.php"
     ]
   },
   "config": {

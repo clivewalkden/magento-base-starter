@@ -1,0 +1,11 @@
+#!/bin/bash
+
+echo "Set file permissions in the site files. Press [ENTER] to continue."
+read -s < /dev/tty
+
+sudo find magento -type f -exec chmod 2666 {} +
+sudo find magento -type d -exec chmod 2777 {} +
+sudo chown -R $USER:$GROUP ./magento
+
+bin/clinotty chmod +x bin/magento
+echo "Permissions updated!"

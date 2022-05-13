@@ -1,0 +1,6 @@
+#!/bin/bash
+if ! bin/cliq ls /usr/local/bin/n98-magerun; then
+    echo "n98-magerun2 not installed, please reinstall."
+fi
+
+bin/cli /usr/local/bin/n98-magerun "$@"

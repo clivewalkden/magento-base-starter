@@ -1,0 +1,183 @@
+version: '2.1'
+services:
+  db:
+    hostname: "db.${LOCAL_DOMAIN}"
+    image: 'percona:5.7'
+    environment:
+      - MYSQL_ROOT_PASSWORD=magento2
+      - "MYSQL_DATABASE=${DB_DATABASE}"
+      - "MYSQL_USER=${DB_USERNAME}"
+      - "MYSQL_PASSWORD=${DB_PASSWORD}"
+    ports:
+      - "3306:3306"
+    volumes:
+      - 'mymagento-magento-sync:/app:delegated'
+      - 'mymagento-magento-db:/var/lib/mysql'
+    healthcheck:
+      test: 'mysqladmin ping -uroot -pmagento2 -h localhost'
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      magento:
+        aliases:
+          - "db.${LOCAL_DOMAIN}"
+
+  redis:
+    hostname: "redis.${LOCAL_DOMAIN}"
+    image: 'redis:5.0'
+    volumes:
+      - 'mymagento-magento-sync:/app:delegated'
+    ports:
+      - 6379
+    healthcheck:
+      test: 'redis-cli ping || exit 1'
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      magento:
+        aliases:
+          - "redis.${LOCAL_DOMAIN}"
+
+  elasticsearch:
+    hostname: "elasticsearch.${LOCAL_DOMAIN}"
+    image: elasticsearch:6.8.18
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      magento:
+        aliases:
+          - "elasticsearch.${LOCAL_DOMAIN}"
+
+  fpm:
+    hostname: "fpm.${LOCAL_DOMAIN}"
+    image: sozo/magento2-php:7.4
+    extends: generic
+    volumes:
+      - 'mymagento-magento-sync:/app:delegated'
+    networks:
+      magento:
+        aliases:
+          - "fpm.${LOCAL_DOMAIN}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    hostname: "web.${LOCAL_DOMAIN}"
+    image: 'magento/magento-cloud-docker-nginx:latest-1.1'
+    #    build: '.docker/Web/'
+    extends: generic
+    ports:
+      - '80:80'
+    volumes:
+      - 'mymagento-magento-sync:/app:delegated'
+    environment:
+      - "VIRTUAL_HOST=${LOCAL_DOMAIN}"
+      - VIRTUAL_PORT=80
+      - HTTPS_METHOD=noredirect
+      - MAGENTO_RUN_MODE=developer
+      - DEBUG=true
+      - WITH_XDEBUG=true
+    healthcheck:
+      test: exit 0
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      magento:
+        aliases:
+          - "web.${LOCAL_DOMAIN}"
+    depends_on:
+      fpm:
+        condition: service_started
+
+  varnish:
+    hostname: "varnish.${LOCAL_DOMAIN}"
+    image: 'magento/magento-cloud-docker-varnish:6.2'
+    networks:
+      magento:
+        aliases:
+          - "${LOCAL_DOMAIN}"
+    volumes:
+      - './.docker/Varnish/default.vcl:/etc/varnish/default.vcl'
+    depends_on:
+      web:
+        condition: service_healthy
+
+  tls:
+    hostname: "tls.${LOCAL_DOMAIN}"
+    image: 'sozo/magento2-tls:latest'
+    ports:
+      - '443:443'
+    environment:
+      HTTPS_UPSTREAM_SERVER_ADDRESS: varnish
+    networks:
+      magento:
+        aliases:
+          - "tls.${LOCAL_DOMAIN}"
+    depends_on:
+      varnish:
+        condition: service_started
+
+  generic:
+    hostname: "generic.${LOCAL_DOMAIN}"
+    image: 'alpine:latest'
+    env_file: ./.docker/config.env
+    environment:
+      - MAGENTO_RUN_MODE=developer
+      - 'PHP_EXTENSIONS=bcmath bz2 calendar exif gd gettext intl mysqli pcntl pdo_mysql soap sockets sysvmsg sysvsem sysvshm opcache zip sodium redis xsl blackfire'
+
+  fpm_xdebug:
+    hostname: "fpm_xdebug.${LOCAL_DOMAIN}"
+    image: 'magento/magento-cloud-docker-php:7.2-fpm-1.2'
+    extends: generic
+    ports:
+      - '9001:9001'
+    volumes:
+      -  'mymagento-magento-sync:/app'
+    environment:
+      - 'PHP_EXTENSIONS=bcmath bz2 calendar exif gd gettext intl mysqli pcntl pdo_mysql soap sockets sysvmsg sysvsem sysvshm opcache zip redis xsl sodium xdebug'
+      - XDEBUG_CONFIG=remote_host=host.docker.internal remote_autostart=On remote_enable=On idekey=XDEBUG remote_log=/tmp/xdebug.log remote_port=9000
+    networks:
+      magento:
+        aliases:
+          - "fpm_xdebug.${LOCAL_DOMAIN}"
+    depends_on:
+      db:
+        condition: service_started
+
+  mailhog:
+    hostname: "mailhog.${LOCAL_DOMAIN}"
+    image: 'mailhog/mailhog:latest'
+    restart: always
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+    networks:
+      magento:
+        aliases:
+          - "mailhog.${LOCAL_DOMAIN}"
+
+volumes:
+  mymagento-magento-sync:
+    driver_opts:
+      type: none
+      device: ${PWD}/magento
+      o: bind
+  mymagento-magento-db: {  }
+networks:
+  magento:
+    driver: bridge

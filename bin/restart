@@ -1,0 +1,9 @@
+#!/bin/bash
+
+source "${PWD}/bin/set_env.sh"
+source "${PWD}/.docker/config.env"
+IFS=', ' read -r -a local_domains <<< "$LOCAL_DOMAINS"
+export LOCAL_DOMAIN="${local_domains[0]}"
+
+bin/stop "$@"
+bin/start "$@"

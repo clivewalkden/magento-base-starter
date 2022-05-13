@@ -1,0 +1,80 @@
+#!/bin/bash
+set -o errexit
+
+LOCAL_DOMAIN=${1:-magento.localhost}
+VERSION=${2:-2.4.3-p1}
+EDITION=${3:-community}
+
+source ${PWD}/.docker/config.env
+clear
+
+
+echo "Downloading Magento ${VERSION} and installing to ${LOCAL_DOMAIN}. Press [ENTER] to continue."
+read -s < /dev/tty
+bin/download "${VERSION}" "${EDITION}"
+
+echo "Start by setting the file permissions"
+bin/permissions
+
+echo "Configure SSL. Press [ENTER] to continue."
+read -s < /dev/tty
+bin/setup-ssl "${LOCAL_DOMAIN}"
+
+echo "Run Magento setup commands. Press [ENTER] to continue."
+read -s < /dev/tty
+
+bin/magento setup:install \
+  --base-url=${APP_URL} \
+  --backend-frontname=sozoadmin \
+  --db-host=${DB_HOST} \
+  --db-name=${DB_DATABASE} \
+  --db-user=${DB_USERNAME} \
+  --db-password=${DB_PASSWORD} \
+  --session-save=redis \
+  --session-save-redis-host=redis \
+  --session-save-redis-port=6379 \
+  --session-save-redis-db=0 \
+  --cache-backend=redis \
+  --cache-backend-redis-server=redis \
+  --cache-backend-redis-port=6379 \
+  --cache-backend-redis-db=1 \
+  --page-cache=redis \
+  --page-cache-redis-server=redis \
+  --page-cache-redis-port=6379 \
+  --page-cache-redis-db=2 \
+  --admin-firstname=admin \
+  --admin-lastname=admin \
+  --admin-email=admin@admin.com \
+  --admin-user=admin \
+  --admin-password=admin123 \
+  --language=en_GB \
+  --currency=GBP \
+  --timezone=Europe/London \
+  --use-rewrites=1 \
+  --search-engine=elasticsearch7 \
+  --elasticsearch-host=elasticsearch \
+  --elasticsearch-port=9200
+
+while true; do
+  echo -e "\n"
+  read -p "Install Sample Data? [y/n] " yn
+
+  case $yn in
+    [Yy]* )
+      bin/magento sampledata:deploy
+      bin/magento setup:upgrade
+      bin/n98-magerun setup:static-content:deploy -f -j4 en_GB en_US
+      bin/n98-magerun indexer:reindex
+      bin/n98-magerun cache:flush
+      break;;
+    [Nn]* ) break;;
+    * ) echo "Please answer yes or no.";;
+  esac
+done
+
+echo "Fix bin/magento permissions"
+bin/permissions
+
+echo
+echo "Complete! Please visit ${LOCAL_DOMAIN} to view the site."
+echo

@@ -1,0 +1,73 @@
+#!/bin/bash
+set -o errexit
+
+docker cp "$(docker-compose ps -q tls|awk '{print $1}')":/ca-certs/sozocacert.pem .
+
+echo "System password requested to install certificate authority on host..."
+
+if [ "$(uname)" == "Darwin" ]; then
+    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain sozocacert.pem
+
+    # Check if Firefox is installed
+    FFoxBin="/Application/Firefox.app/Contents/MacOS/firefox-bin"
+    if [ -f "$FFoxBin" ]; then
+        echo "{\"policies\": {\"Certificates\": {\"ImportEnterpriseRoots\": true}}}" | sudo tee policies.json
+
+        ### Check if distribution directory exists
+        DistDirectory="/Applications/Firefox.app/Contents/Resources/distribution"
+        if [ ! -d "$DistDirectory" ]; then
+            sudo mkdir "$DistDirectory"
+        fi
+        ### Move the newly created policies.json to the Certificates directory
+        sudo mv policies.json "$DistDirectory"/policies.json
+
+        ### Check if Certificates directory exists
+        CertDirectory="/Library/Application Support/Mozilla/Certificates"
+        if [ ! -d "$CertDirectory" ]; then
+            sudo mkdir "$CertDirectory"
+        fi
+
+        ### Move the newly created .pem to the Certificates directory
+        sudo mv sozocacert.pem "$CertDirectory"/sozocacert.pem
+    else
+        sudo rm sozocacert.pem
+    fi
+
+else
+
+    ### Requirement: apt install ca-certificates
+    REQUIRED_PKG="ca-certificates"
+    PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG|grep "install ok installed")
+    echo Checking for $REQUIRED_PKG: "$PKG_OK"
+    if [ "" = "$PKG_OK" ]; then
+        echo "No $REQUIRED_PKG found. Setting up $REQUIRED_PKG."
+        sudo apt-get --yes install $REQUIRED_PKG
+    fi
+
+    ### CA file to install (CUSTOMIZE!)
+    certfile="sozocacert.pem"
+    certname="SOZO CA"
+
+    ### For cert8 (legacy - DBM)
+    find ~/ -name "cert8.db" -print0 | while read -r certDB
+    do
+        certdir=$(dirname "${certDB}");
+        certutil -D -n "${certname}" -i ${certfile} -d dbm:"${certdir}"
+        certutil -A -n "${certname}" -t "TCu,Cu,Tu" -i ${certfile} -d dbm:"${certdir}"
+    done
+
+    ### For cert9 (SQL)
+    find ~/ -name "cert9.db" -print0 | while read -r certDB
+    do
+        certdir=$(dirname "${certDB}");
+        certutil -D -n "${certname}" -i ${certfile} -d sql:"${certdir}"
+        certutil -A -n "${certname}" -t "TCu,Cu,Tu" -i ${certfile} -d sql:"${certdir}"
+    done
+
+    sudo mv sozocacert.pem /usr/local/share/ca-certificates/sozocacert.crt
+    sudo update-ca-certificates
+
+    if ($(awk -v cmd='openssl x509 -noout -subject' '/BEGIN/{close(cmd)};{print | cmd}' < /etc/ssl/certs/ca-certificates.crt | grep -q SOZO)); then
+        echo "SOZO Root CA Installed!"
+    fi
+fi

@@ -1,0 +1,21 @@
+#!/bin/bash
+
+source "${PWD}/bin/set_env.sh"
+source "${PWD}/.docker/config.env"
+IFS=', ' read -r -a local_domains <<< "$LOCAL_DOMAINS"
+export LOCAL_DOMAIN="${local_domains[0]}"
+
+VERSION=${1:-2.4.3-p1}
+EDITION=${2:-community}
+
+bin/stop
+
+sudo rm -rf "${PWD}/magento"
+mkdir -p "${PWD}/magento"
+sudo chown -R ${USER_ID}:${GROUP_ID} "${PWD}/magento"
+
+docker-compose --env-file=./.docker/config.env -f docker-compose.yaml up -d --build
+[ $? != 0 ] && echo "Failed to start Docker" && exit
+
+bin/setup-composer-auth
+bin/clinotty composer create-project --repository=https://repo.magento.com/ magento/project-"${EDITION}"-edition="${VERSION}" .

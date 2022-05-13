@@ -1,0 +1,40 @@
+#!/bin/bash
+source ${PWD}/.docker/config.env
+clear
+
+DEFAULT_THEME_ID="select value from core_config_data where path = 'design/theme/theme_id'"
+THEME_PATH="select theme_path from theme where theme_id in ($DEFAULT_THEME_ID);"
+VENDOR_THEME=$(bin/n98-magerun db:query "$THEME_PATH" | sed -n 2p | cut -d$'\r' -f1)
+THEME=$(echo "$VENDOR_THEME" | cut -d'/' -f2)
+LOCALE_CODE=$(bin/n98-magerun config:show general/locale/code | cut -d$'\r' -f1 | sed 's/ *$//g')
+
+echo "Configuring frontend build requirements..."
+
+# Check if package.json exists
+if ! bin/cliq ls /app/package.json; then
+    echo "package.json missing, using sample"
+    bin/clinotty cp package.json.sample package.json
+fi
+
+# Check if package.json exists
+if ! bin/cliq ls /app/Gruntfile.js; then
+    echo "Gruntfile.js missing, using sample"
+    bin/clinotty cp Gruntfile.js.sample Gruntfile.js
+fi
+
+# Check if package.json exists
+if ! bin/cliq ls /app/grunt-config.json; then
+    echo "Gruntfile.js missing, using sample"
+    bin/clinotty cp grunt-config.json.sample grunt-config.json
+fi
+
+#bin/npm install ajv@^5.0.0 --save
+bin/npm install
+bin/n98-magerun cache:clean
+bin/grunt clean
+bin/grunt exec:$THEME
+bin/grunt less:$THEME
+
+echo
+echo "Complete! Please visit use bin/grunt for frontend compilation."
+echo

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+source ${PWD}/.docker/config.env
+
+export USER_ID=$(id -u)
+export GROUP_ID=$(id -g)
+
+IFS=', ' read -r -a local_domains <<< "$LOCAL_DOMAINS"
+export LOCAL_DOMAIN="${local_domains[0]}"
+
+echo $LOCAL_DOMAIN
+
+docker-compose --env-file=./.docker/config.env -f docker-compose.yaml up -d --remove-orphans "$@"

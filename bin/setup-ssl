@@ -1,0 +1,14 @@
+#!/bin/bash
+[ -z "$1" ] && echo "Please specify a domain (ex. clientname.localhost)" && exit
+
+# Generate certificate authority if not already setup
+#if ! docker-compose exec -T -u root tls cat /ca-certs/sozocacert.pem | grep -q 'BEGIN CERTIFICATE'; then
+#    bin/setup-ssl-ca
+#fi
+
+# Generate the certificate for the specified domain
+docker-compose exec -T -u root tls bash ./generate-ssl.sh "$@"
+
+# Restart nginx to apply the update
+echo "restarting containers to apply updates..."
+bin/restart
