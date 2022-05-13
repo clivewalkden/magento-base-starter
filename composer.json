@@ -16,6 +16,9 @@
   },
   "scripts": {
     "post-create-project-cmd": [
+      "@prepare -- --magento-version=2.4.4"
+    ],
+    "prepare": [
       "CliveWalkden\\Composer\\Handler::checkComposerVersion",
       "CliveWalkden\\Composer\\Handler::prepare"
     ]
