@@ -12,7 +12,9 @@
   ],
   "require": {
     "php": ">=7.4",
-    "composer/composer": "^2.2"
+    "composer/composer": "^2.2",
+    "symfony/filesystem": "^5.4",
+    "symfony/translation-contracts": "^2.5"
   },
   "scripts": {
     "post-create-project-cmd": [
@@ -25,7 +27,8 @@
   },
   "autoload": {
     "classmap": [
-      "Scripts/Composer/Handler.php"
+      "Scripts/Composer/Handler.php",
+      "Scripts/Preparation.php"
     ]
   },
   "config": {

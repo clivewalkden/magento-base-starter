@@ -1,15 +1,37 @@
 <?php
+
 namespace CliveWalkden\Composer;
 
+use CliveWalkden\Preparation;
 use Composer\Script\Event;
 use Composer\Semver\Comparator;
 
-class Handler {
-    public static function prepare(Event $event) {
-        var_dump($event->getArguments());
+class Handler
+{
+    public static function prepare(Event $event)
+    {
+        $io = $event->getIO();
+        
+        // Create the Magento directory
+        $dirs = ['magento'];
+        Preparation::createDirs($dirs);
+
+        // Copy files to the correct location
+        $files = [
+            'docker-compose.yml' => 'docker-compose.yml',
+            '.docker/' => '.docker'
+        ];
+        Preparation::copyFiles($files);
+
+        // Get domain from directory
+        $domain = Preparation::getDomain();
+        
+        $io->error("<error>Domain: {$domain}</error>");
+        exit(1);
     }
 
-    public static function checkComposerVersion(Event $event) {
+    public static function checkComposerVersion(Event $event)
+    {
         $composer = $event->getComposer();
         $io = $event->getIO();
 
