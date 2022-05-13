@@ -17,16 +17,17 @@ class Handler
         Preparation::createDirs($dirs);
 
         // Copy files to the correct location
-        $files = [
-            'docker-compose.yml' => 'docker-compose.yml',
-            '.docker/' => '.docker'
+        $copy_dirs = [
+            '.docker' => '.docker'
         ];
-        Preparation::copyFiles($files);
+        $copy_files = [
+            'docker-compose.yaml' => 'docker-compose.yaml',
+        ];
+        Preparation::copyTemplates($copy_dirs, $copy_files);
 
-        // Get domain from directory
-        $domain = Preparation::getDomain();
+
         
-        $io->error("<error>Domain: {$domain}</error>");
+        $io->error("<error>Complete!</error>");
         exit(1);
     }
 
