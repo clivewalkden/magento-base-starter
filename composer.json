@@ -1,0 +1,27 @@
+{
+  "name": "clivewalkden/magento-base-starter",
+  "type": "project",
+  "description": "A Magento starter template for local development and plugin testing.",
+  "keywords": ["Magento 2", "Starter"],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "clive",
+      "email": "email@example.com"
+    }
+  ],
+  "require": {
+  },
+  "scripts": {
+    "post-create-project-cmd": [
+      "@php -v"
+    ]
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
